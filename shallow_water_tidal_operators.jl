@@ -42,12 +42,12 @@ function Base.size(A::ShallowWaterTidalOperator, d)
 end
 
 function ShallowWaterTidalOperator(grid;
-                       coriolis = HydrostaticSphericalCoriolis(),
-                       gravitational_acceleration = 9.81,
-                       depth = ConstantField(3000),
-                       damping_timescale = 30days,
-                       γ₂ = 0.69,
-                       tidal_frequency = 2π / 12.421hours)
+                                   coriolis = HydrostaticSphericalCoriolis(),
+                                   gravitational_acceleration = 9.81,
+                                   depth = ConstantField(3000),
+                                   damping_timescale = 30days,
+                                   γ₂ = 0.69,
+                                   tidal_frequency = 2π / 12.421hours)
 
     equilibrium_tide = ηₑ = CenterField(grid, Complex{Float64})
     compute_equilibrium_tide!(ηₑ, γ₂, gravitational_acceleration)
@@ -139,9 +139,11 @@ function LinearAlgebra.mul!(result, A::ShallowWaterTidalOperator, solution)
     k = 1
     for i = 1:Nx
         for j = 1:Ny
-            @inbounds RU[i, j, k] = u_tidal_operator(i, j, k, grid, U, V, η, A)
-            @inbounds RV[i, j, k] = v_tidal_operator(i, j, k, grid, U, V, η, A)
-            @inbounds Rη[i, j, k] = η_tidal_operator(i, j, k, grid, U, V, η, A)
+            @inbounds begin
+                RU[i, j, k] = u_tidal_operator(i, j, k, grid, U, V, η, A)
+                RV[i, j, k] = v_tidal_operator(i, j, k, grid, U, V, η, A)
+                Rη[i, j, k] = η_tidal_operator(i, j, k, grid, U, V, η, A)
+            end
         end
     end
 
