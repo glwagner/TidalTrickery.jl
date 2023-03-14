@@ -6,10 +6,13 @@ using GLMakie
 
 include("shallow_water_tidal_operators.jl")
 
-grid = LatitudeLongitudeGrid(size = (180, 60),
+grid = LatitudeLongitudeGrid(size = (90, 30),
                              latitude = (-60, 60),
                              longitude = (-180, 180),
                              topology = (Periodic, Bounded, Flat))
+
+#land(λ, φ, z) = (φ^2 + λ^2) < 20^2
+#grid = ImmersedBoundaryGrid(grid, GridFittedBoundary(land))
 
 op = ShallowWaterTidalOperator(grid)
 
@@ -28,7 +31,7 @@ elapsed = 1e-9 * (time_ns() - start_time)
 
 U, V, η = vector_to_shallow_water_fields(solution, grid)
 
-fig = Figure()
+fig = Figure(resolution=(1200, 800))
 
 axh = Axis(fig[1, 1], title="Equilibrium tide")
 axu = Axis(fig[1, 2], title="RHS of tidal operator u-component")

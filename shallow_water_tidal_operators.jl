@@ -45,7 +45,7 @@ function ShallowWaterTidalOperator(grid;
                                    coriolis = HydrostaticSphericalCoriolis(),
                                    gravitational_acceleration = 9.81,
                                    depth = ConstantField(3000),
-                                   damping_timescale = 30days,
+                                   damping_timescale = 7days,
                                    γ₂ = 0.69,
                                    tidal_frequency = 2π / 12.421hours)
 
@@ -141,13 +141,13 @@ function LinearAlgebra.mul!(result, A::ShallowWaterTidalOperator, solution)
         for j = 1:Ny
             @inbounds begin
                 RU[i, j, k] = u_tidal_operator(i, j, k, grid, U, V, η, A)
-                RV[i, j, k] = v_tidal_operator(i, j, k, grid, U, V, η, A)
+                RV[i, j, k] = ifelse(j == 1, zero(grid), v_tidal_operator(i, j, k, grid, U, V, η, A))
                 Rη[i, j, k] = η_tidal_operator(i, j, k, grid, U, V, η, A)
             end
         end
     end
 
-    return nothing
+    return result
 end
 
 @inline function u_tidal_operator(i, j, k, grid, U, V, η, tidal_operator)
