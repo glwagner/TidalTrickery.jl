@@ -5,6 +5,7 @@ using Oceananigans.Fields: ConstantField
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.Coriolis: x_f_cross_U, y_f_cross_U
 using Oceananigans.Grids: total_size, offset_data, xnode, ynode
+using Oceananigans.ImmersedBoundaries: mask_immersed_field!
 using LinearAlgebra
 using IterativeSolvers
 using Statistics
@@ -45,7 +46,7 @@ function ShallowWaterTidalOperator(grid;
                                    coriolis = HydrostaticSphericalCoriolis(),
                                    gravitational_acceleration = 9.81,
                                    depth = ConstantField(3000),
-                                   damping_timescale = 7days,
+                                   damping_timescale = 1days,
                                    γ₂ = 0.69,
                                    tidal_frequency = 2π / 12.421hours)
 
@@ -72,8 +73,8 @@ function ShallowWaterTidalOperator(grid;
     g = gravitational_acceleration
     H = depth
     k = 1
-    for i = 1:Nx
-        for j = 1:Ny
+    for j = 1:Ny
+        for i = 1:Nx
             @inbounds begin
                 RU[i, j, k] = - x_equilibrium_tide_gradient(i, j, k, grid, g, H, ηₑ)
                 RV[i, j, k] = - y_equilibrium_tide_gradient(i, j, k, grid, g, H, ηₑ)
@@ -96,12 +97,10 @@ function compute_equilibrium_tide!(ηₑ, γ₂, g)
     Nx, Ny, Nz = size(grid)
 
     k = 1
-    for i = 1:Nx
-        for j = 1:Ny
+    for j = 1:Ny, i = 1:Nx
             λ = xnode(Center(), i, grid)
             φ = ynode(Center(), j, grid)
             @inbounds ηₑ[i, j, k] = γ₂ / g * exp(2im * deg2rad(λ)) * cosd(φ)^2
-        end
     end
 end
 
@@ -127,7 +126,7 @@ function LinearAlgebra.mul!(result, A::ShallowWaterTidalOperator, solution)
     grid = A.grid
     result .= 0
 
-    U, V, η = vector_to_shallow_water_fields(solution, grid)
+    U,  V,  η  = vector_to_shallow_water_fields(solution, grid)
     RU, RV, Rη = vector_to_shallow_water_fields(result, grid)
 
     fill_halo_regions!(U)
@@ -137,8 +136,8 @@ function LinearAlgebra.mul!(result, A::ShallowWaterTidalOperator, solution)
     Nx, Ny, Nz = size(grid)
 
     k = 1
-    for i = 1:Nx
-        for j = 1:Ny
+    for j = 1:Ny
+        for i = 1:Nx
             @inbounds begin
                 RU[i, j, k] = u_tidal_operator(i, j, k, grid, U, V, η, A)
                 RV[i, j, k] = ifelse(j == 1, zero(grid), v_tidal_operator(i, j, k, grid, U, V, η, A))
@@ -190,8 +189,6 @@ function vector_to_shallow_water_fields(solution, grid)
     V_size = total_size(V_loc, grid)
     η_size = total_size(η_loc, grid)
 
-    N_sol = prod(U_size) + prod(V_size) + prod(η_size)
-
     U_size = total_size(U_loc, grid)
     V_size = total_size(V_loc, grid)
     η_size = total_size(η_loc, grid)
@@ -218,4 +215,3 @@ function vector_to_shallow_water_fields(solution, grid)
 
     return U, V, η
 end
-
