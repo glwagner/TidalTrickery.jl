@@ -11,8 +11,11 @@ grid = LatitudeLongitudeGrid(size = (90, 30),
                              longitude = (-180, 180),
                              topology = (Periodic, Bounded, Flat))
 
-#land(λ, φ, z) = (φ^2 + λ^2) < 20^2
-#grid = ImmersedBoundaryGrid(grid, GridFittedBoundary(land))
+land(λ, φ, z) = (φ^2 + λ^2) < 20^2
+
+land(λ, φ, z) = abs(φ-10) < 20 && abs(λ) < 30
+
+grid = ImmersedBoundaryGrid(grid, GridFittedBoundary(land))
 
 op = ShallowWaterTidalOperator(grid)
 
@@ -45,9 +48,8 @@ axh = Axis(fig[2, 1], title="real(η̂) stationary tide solution")
 axu = Axis(fig[2, 2], title="real(Û) stationary tide solution")
 axv = Axis(fig[2, 3], title="real(V̂) stationary tide solution")
 
-heatmap!(axh, real.(interior(η, :, :, 1)))
-heatmap!(axu, real.(interior(U, :, :, 1)))
-heatmap!(axv, real.(interior(V, :, :, 1)))
+heatmap!(axh, real.(interior(η, :, :, 1)), colormap=:balance)
+heatmap!(axu, real.(interior(U, :, :, 1)), colormap=:balance)
+heatmap!(axv, real.(interior(V, :, :, 1)), colormap=:balance)
 
 display(fig)
-
