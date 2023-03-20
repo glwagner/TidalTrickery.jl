@@ -82,6 +82,9 @@ function ShallowWaterTidalOperator(grid;
         end
     end
 
+    fill_halo_regions!(RU)
+    fill_halo_regions!(RV)
+
     return ShallowWaterTidalOperator(grid,
                          coriolis,
                          gravitational_acceleration,
@@ -98,9 +101,9 @@ function compute_equilibrium_tide!(ηₑ, γ₂, g)
 
     k = 1
     for j = 1:Ny, i = 1:Nx
-            λ = xnode(Center(), i, grid)
-            φ = ynode(Center(), j, grid)
-            @inbounds ηₑ[i, j, k] = γ₂ / g * exp(2im * deg2rad(λ)) * cosd(φ)^2
+        λ = xnode(Center(), i, grid)
+        φ = ynode(Center(), j, grid)
+        @inbounds ηₑ[i, j, k] = γ₂ / g * exp(2im * deg2rad(λ)) * cosd(φ)^2
     end
 end
 
@@ -129,6 +132,10 @@ function LinearAlgebra.mul!(result, A::ShallowWaterTidalOperator, solution)
     U,  V,  η  = vector_to_shallow_water_fields(solution, grid)
     RU, RV, Rη = vector_to_shallow_water_fields(result, grid)
 
+    mask_immersed_field!(U)
+    mask_immersed_field!(V)
+    mask_immersed_field!(η)
+
     fill_halo_regions!(U)
     fill_halo_regions!(V)
     fill_halo_regions!(η)
@@ -136,15 +143,21 @@ function LinearAlgebra.mul!(result, A::ShallowWaterTidalOperator, solution)
     Nx, Ny, Nz = size(grid)
 
     k = 1
-    for j = 1:Ny
-        for i = 1:Nx
-            @inbounds begin
-                RU[i, j, k] = u_tidal_operator(i, j, k, grid, U, V, η, A)
-                RV[i, j, k] = ifelse(j == 1, zero(grid), v_tidal_operator(i, j, k, grid, U, V, η, A))
-                Rη[i, j, k] = η_tidal_operator(i, j, k, grid, U, V, η, A)
-            end
+    for j = 1:Ny, i = 1:Nx
+        @inbounds begin
+            RU[i, j, k] = u_tidal_operator(i, j, k, grid, U, V, η, A)
+            RV[i, j, k] = v_tidal_operator(i, j, k, grid, U, V, η, A)
+            Rη[i, j, k] = η_tidal_operator(i, j, k, grid, U, V, η, A)
         end
     end
+
+    mask_immersed_field!(RU)
+    mask_immersed_field!(RV)
+    mask_immersed_field!(Rη)
+
+    fill_halo_regions!(RU)
+    fill_halo_regions!(RV)
+    fill_halo_regions!(Rη)
 
     return result
 end
@@ -209,8 +222,12 @@ function vector_to_shallow_water_fields(solution, grid)
     V_data = offset_data(V_parent, grid, V_loc) 
     η_data = offset_data(η_parent, grid, η_loc) 
 
+    v_boundary_conditions = FieldBoundaryConditions(grid, (Center, Face, Center);
+                                                    north = OpenBoundaryCondition(nothing),
+                                                    south = OpenBoundaryCondition(nothing))
+
     U = XFaceField(grid, data=U_data)
-    V = YFaceField(grid, data=V_data)
+    V = YFaceField(grid, data=V_data, boundary_conditions=v_boundary_conditions)
     η = CenterField(grid, data=η_data)
 
     return U, V, η
